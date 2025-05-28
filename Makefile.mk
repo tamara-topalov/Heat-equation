@@ -1,30 +1,23 @@
-# Compiler and flags
-CC = gcc
-CFLAGS = -Wall -Wextra -O2
+NVCC := /usr/local/cuda-12.6.3/bin/nvcc
+CC := gcc
+CFLAGS := -O2
+NVCCFLAGS := -O2
 
-# Target executable
-TARGET = solver
+TARGETS := benchmark visualize
 
-# Source files
-SRCS = main.c
+all: $(TARGETS)
 
-# Object files
-OBJS = $(SRCS:.c=.o)
+benchmark: cpu_gpu_benchmark.cu cpu_solver.c gpu_solver.cu
+	$(NVCC) $(NVCCFLAGS) cpu_gpu_benchmark.cu cpu_solver.c gpu_solver.cu -o benchmark
 
-# Default target
-all: $(TARGET)
+visualize: heatmap_visualizer.cu cpu_solver.c gpu_solver.cu
+	$(NVCC) $(NVCCFLAGS) heatmap_visualizer.cu cpu_solver.c gpu_solver.cu -o visualize
 
-# Build the target executable
-$(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) -o $@ $^
+frames:
+	bash render_frames.sh
 
-# Compile source files into object files
-%.o: %.c
-	$(CC) $(CFLAGS) -c $< -o $@
+gif: frames
+	convert -delay 40 -loop 0 frames/frame_*.png heat_animation.gif
 
-# Clean up build files
 clean:
-	rm -f $(OBJS) $(TARGET)
-
-# Phony targets
-.PHONY: all clean
+	rm -f benchmark visualize *.o *.dat frame_*.png heat_animation.gif
