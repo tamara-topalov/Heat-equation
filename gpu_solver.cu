@@ -17,15 +17,12 @@ __global__ void evolve_kernel(double* grid, double* new_grid, int width, int hei
     }
 }
 
-void evolve_gpu(double* h_grid, int width, int height, int time_steps, double delta, double gamma, float* elapsed_time_ms) {
+void evolve_gpu(double* h_grid, int width, int height, int time_steps, double delta, double gamma, float* elapsed_time_ms, dim3 threadsPerBlock, dim3 numBlocks) {
     int size = (width + 2) * (height + 2) * sizeof(double);
     double *d_grid, *d_new_grid;
     cudaMalloc(&d_grid, size);
     cudaMalloc(&d_new_grid, size);
     cudaMemcpy(d_grid, h_grid, size, cudaMemcpyHostToDevice);
-
-    dim3 threadsPerBlock(16, 16);
-    dim3 numBlocks((width + 15) / 16, (height + 15) / 16);
 
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
@@ -46,6 +43,7 @@ void evolve_gpu(double* h_grid, int width, int height, int time_steps, double de
     cudaFree(d_grid);
     cudaFree(d_new_grid);
 }
+
 
 void evolve_gpu_with_frames(double* h_grid, int width, int height, int time_steps, double delta, double gamma, float* elapsed_time_ms, int frame_interval) {
     int size = (width + 2) * (height + 2) * sizeof(double);

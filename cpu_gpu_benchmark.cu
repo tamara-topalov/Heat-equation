@@ -1,36 +1,62 @@
+// cpu_gpu_benchmark.cu
+// Benchmarks CPU vs GPU simulation time across grid sizes, time steps, gamma values, and different CUDA block sizes. Also prints system information and checks CPU-GPU correctness.
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #include <math.h>
+#include <unistd.h>
 #include <cuda_runtime.h>
 #include "cpu_solver.h"
 #include "gpu_solver.h"
 
+double compute_rmse(double* a, double* b, int size);
 
 int main() {
+    // Print system information
+    int n_cores = sysconf(_SC_NPROCESSORS_ONLN);
+    printf("CPU cores: %d\n", n_cores);
+
+    cudaDeviceProp prop;
+    cudaGetDeviceProperties(&prop, 0);
+    printf("GPU: %s, %d SMs, %ld MB global mem\n", prop.name, prop.multiProcessorCount, prop.totalGlobalMem / (1024 * 1024));
+
     int sizes[] = {100, 200, 300};
-    int n_sizes = sizeof(sizes) / sizeof(sizes[0]);
     int time_steps_list[] = {100, 200, 400};
-    int n_steps = sizeof(time_steps_list) / sizeof(time_steps_list[0]);
-    double gamma_list[] = {0.001, 0.005, 0.01};
-    int n_gamma = sizeof(gamma_list) / sizeof(gamma_list[0]);
-    double delta = 0.1;
+    
+    // making gamma and delta pairs that satisfy the gamma / (delta^2) < 0.5 condtion
+    struct ParamPair {
+        double gamma;
+        double delta;
+    };
+    ParamPair param_pairs[] = {
+        {0.0010, 0.1},
+        {0.0050, 0.2},
+        {0.0100, 0.2}, 
+        {0.0005, 0.05},
+    };
+    int num_pairs = sizeof(param_pairs) / sizeof(param_pairs[0]);
+
+    dim3 block_sizes[] = { dim3(8,8), dim3(16,16), dim3(32,32) };
 
     FILE* f = fopen("timing_results.csv", "w");
-    if (!f) { perror("Failed to open output file"); return 1; }
-    fprintf(f, "Grid,Steps,Gamma,CPU (s),GPU (ms),Speedup\n");
+    fprintf(f, "Grid,Steps,Gamma,Delta,BlockX,BlockY,CPU (s),GPU (ms),Speedup,RMSE\n");
 
-    printf("Grid     | Steps | Gamma  | CPU Time (s) | GPU Time (ms) | Speedup \n");
-    printf("-------------------------------------------------------------------\n");
-
-    for (int s = 0; s < n_sizes; ++s) {
+    for (int s = 0; s < 3; ++s) {
         int width = sizes[s], height = sizes[s];
         size_t grid_size = (width + 2) * (height + 2);
 
-        for (int g = 0; g < n_gamma; ++g) {
-            double gamma = gamma_list[g];
+        for (int p = 0; p < num_pairs; ++p) {
+            double gamma = param_pairs[p].gamma;
+            double delta = param_pairs[p].delta;
 
-            for (int ts = 0; ts < n_steps; ++ts) {
+            if (gamma / (delta * delta) >= 0.5) {
+                printf("Skipping unstable pair: gamma=%.4f, delta=%.4f (gamma/delta²=%.4f)\n",
+                    gamma, delta, gamma / (delta * delta));
+                continue;
+            }
+
+            for (int ts = 0; ts < 3; ++ts) {
                 int time_steps = time_steps_list[ts];
 
                 double *grid_cpu = (double*) calloc(grid_size, sizeof(double));
@@ -40,26 +66,46 @@ int main() {
                 reset_grid(grid_gpu, width, height);
 
                 clock_t start_cpu = clock();
-                evolve_cpu(grid_cpu, width, height, time_steps, delta, gamma);
+                evolve_cpu(grid_cpu, width, height, time_steps, 0.1, gamma);
                 clock_t end_cpu = clock();
                 double cpu_time = (double)(end_cpu - start_cpu) / CLOCKS_PER_SEC;
 
-                float gpu_time = 0.0f;
-                evolve_gpu(grid_gpu, width, height, time_steps, delta, gamma, &gpu_time);
+                for (int b = 0; b < 3; ++b) {
+                    dim3 threadsPerBlock = block_sizes[b];
+                    dim3 numBlocks((width + threadsPerBlock.x - 1) / threadsPerBlock.x,
+                                   (height + threadsPerBlock.y - 1) / threadsPerBlock.y);
 
-                double speedup = (cpu_time * 1000.0) / gpu_time;
+                    float gpu_time = 0.0f;
+                    evolve_gpu(grid_gpu, width, height, time_steps, 0.1, gamma, &gpu_time, threadsPerBlock, numBlocks);
 
-                printf("%3dx%-3d  | %5d | %.4f | %11.4f | %13.2f | %7.2fx \n",
-                    width, height, time_steps, gamma, cpu_time, gpu_time, speedup);
-                fprintf(f, "%dx%d,%d,%.4f,%.4f,%.2f\n",
-                    width, height, time_steps, gamma, cpu_time, gpu_time);
+                    double rmse = compute_rmse(grid_cpu, grid_gpu, grid_size);
+
+                    double speedup = (cpu_time * 1000.0) / gpu_time;
+
+                    printf("%3dx%-3d | %5d | gamma=%.4f | delta=%.4f | Block %2dx%2d | CPU: %.4fs | GPU: %.2fms | Speedup: %.2fx | RMSE: %.6f\n",
+                        width, height, time_steps, gamma, delta, threadsPerBlock.x, threadsPerBlock.y,
+                        cpu_time, gpu_time, speedup, rmse);
+
+                    fprintf(f, "%dx%d,%d,%.4f,%.4f,%d,%d,%.4f,%.2f,%.2f,%.6f\n",
+                        width, height, time_steps, gamma, delta, threadsPerBlock.x, threadsPerBlock.y,
+                        cpu_time, gpu_time, speedup, rmse);
+                }
 
                 free(grid_cpu);
-                free(grid_gpu); 
+                free(grid_gpu);
             }
         }
     }
 
     fclose(f);
     return 0;
+}
+
+double compute_rmse(double* a, double* b, int size) {
+    double sum = 0.0;
+    for (int i = 0; i < size; ++i) {
+        double diff = a[i] - b[i];
+        sum += diff * diff;
+    }
+    return sqrt(sum / size);
 }
