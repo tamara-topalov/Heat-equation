@@ -1,7 +1,7 @@
-NVCC := /usr/local/cuda-12.6.3/bin/nvcc
-CC := gcc
-CFLAGS := -O2
-NVCCFLAGS := -O2
+NVCC = /usr/local/cuda-12.6.3/bin/nvcc
+CC = gcc
+CFLAGS = -Wall -O2
+NVCCFLAGS = -O2
 
 TARGETS := benchmark visualize
 
