@@ -2,23 +2,30 @@
 #include <stdlib.h>
 #include "cpu_solver.h"
 
+void update_grid(double* new_grid, double* grid, int width, int height, double delta, double gamma) {
+    for (int i = 1; i < width + 1; ++i) {
+        for (int j = 1; j < height + 1; ++j) {
+            new_grid[i * (height + 2) + j] = (1 - 4 * gamma / (delta * delta)) * grid[i * (height + 2) + j] +
+                (gamma / (delta * delta)) * (
+                    grid[(i - 1) * (height + 2) + j] +
+                    grid[(i + 1) * (height + 2) + j] +
+                    grid[i * (height + 2) + j - 1] +
+                    grid[i * (height + 2) + j + 1]);
+        }
+    }
+}
+
 void evolve_cpu(double* grid, int width, int height, int time_steps, double delta, double gamma) {
     double* new_grid = (double*) calloc((width + 2) * (height + 2), sizeof(double));
 
-    for (int t = 0; t < time_steps; ++t) {
-        for (int i = 1; i < width + 1; ++i) {
-            for (int j = 1; j < height + 1; ++j) {
-                new_grid[i * (height + 2) + j] = (1 - 4 * gamma / (delta * delta)) * grid[i * (height + 2) + j] +
-                    (gamma / (delta * delta)) * (
-                        grid[(i - 1) * (height + 2) + j] +
-                        grid[(i + 1) * (height + 2) + j] +
-                        grid[i * (height + 2) + j - 1] +
-                        grid[i * (height + 2) + j + 1]);
-            }
-        }
-        for (int i = 1; i < width + 1; ++i)
-            for (int j = 1; j < height + 1; ++j)
-                grid[i * (height + 2) + j] = new_grid[i * (height + 2) + j];
+    for (int t = 0; t < time_steps / 2; ++t) {
+        update_grid(new_grid, grid, width, height, delta, gamma);
+        update_grid(grid, new_grid, width, height, delta, gamma);
+    }
+    if (time_steps % 2 == 1) {
+        update_grid(new_grid, grid, width, height, delta, gamma);
+        for (int i = 0; i < (width + 2) * (height + 2); ++i)
+            grid[i] = new_grid[i];
     }
     free(new_grid);
 }

@@ -10,7 +10,14 @@
 #include "cpu_solver.h"
 #include "gpu_solver.h"
 
-double compute_rmse(double* a, double* b, int size);
+double compute_rmse(double* a, double* b, int size) {
+    double mse = 0.0;
+    for (int i = 0; i < size; ++i) {
+        double diff = a[i] - b[i];
+        mse += (diff * diff) / size;
+    }
+    return mse;
+}
 
 int main() {
     // Print system information
@@ -35,7 +42,7 @@ int main() {
         {0.0100, 0.2}, 
         {0.0005, 0.05},
     };
-    int num_pairs = sizeof(param_pairs) / sizeof(param_pairs[0]);
+    int num_pairs = 4;
 
     dim3 block_sizes[] = { dim3(8,8), dim3(16,16), dim3(32,32) };
 
@@ -66,7 +73,7 @@ int main() {
                 reset_grid(grid_gpu, width, height);
 
                 clock_t start_cpu = clock();
-                evolve_cpu(grid_cpu, width, height, time_steps, 0.1, gamma);
+                evolve_cpu(grid_cpu, width, height, time_steps, delta, gamma);
                 clock_t end_cpu = clock();
                 double cpu_time = (double)(end_cpu - start_cpu) / CLOCKS_PER_SEC;
 
@@ -76,7 +83,7 @@ int main() {
                                    (height + threadsPerBlock.y - 1) / threadsPerBlock.y);
 
                     float gpu_time = 0.0f;
-                    evolve_gpu(grid_gpu, width, height, time_steps, 0.1, gamma, &gpu_time, threadsPerBlock, numBlocks);
+                    evolve_gpu(grid_gpu, width, height, time_steps, delta, gamma, &gpu_time, threadsPerBlock, numBlocks);
 
                     double rmse = compute_rmse(grid_cpu, grid_gpu, grid_size);
 
@@ -101,11 +108,3 @@ int main() {
     return 0;
 }
 
-double compute_rmse(double* a, double* b, int size) {
-    double sum = 0.0;
-    for (int i = 0; i < size; ++i) {
-        double diff = a[i] - b[i];
-        sum += diff * diff;
-    }
-    return sqrt(sum / size);
-}
