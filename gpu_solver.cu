@@ -66,17 +66,25 @@ void evolve_gpu_with_frames(double* h_grid, int width, int height, int time_step
     cudaEventCreate(&stop);
     cudaEventRecord(start);
 
-    for (int t = 0; t < time_steps; ++t) {
+    for (int t = 0; t < time_steps/2; ++t) {
         evolve_kernel<<<numBlocks, threadsPerBlock>>>(d_grid, d_new_grid, width, height, delta, gamma);
         cudaDeviceSynchronize();
-        std::swap(d_grid, d_new_grid);
+        evolve_kernel<<<numBlocks, threadsPerBlock>>>(d_new_grid, d_grid, width, height, delta, gamma);
+        cudaDeviceSynchronize();
 
-        if (t % frame_interval == 0 || t == time_steps - 1) {
+
+        if (t % frame_interval == 0 || t == time_steps / 2 - 1) {
             cudaMemcpy(h_grid, d_grid, size, cudaMemcpyDeviceToHost);
             char filename[64];
-            sprintf(filename, "frame_%03d.dat", t);
+            sprintf(filename, "frame_%03d.dat", 2 * t);
             write_grid_to_file(filename, h_grid, width, height);
         }
+    }
+
+    if (time_steps % 2 == 1) {
+        evolve_kernel<<<numBlocks, threadsPerBlock>>>(d_grid, d_new_grid, width, height, delta, gamma);
+        cudaDeviceSynchronize();
+        cudaMemcpy(d_grid, d_new_grid, size, cudaMemcpyDeviceToDevice);
     }
 
     cudaEventRecord(stop);

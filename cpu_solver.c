@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
+
 #include "cpu_solver.h"
 
 void update_grid(double* new_grid, double* grid, int width, int height, double delta, double gamma) {
@@ -52,4 +54,32 @@ void reset_grid(double* grid, int width, int height) {
         grid[i] = 0.0;
     int mid_i = width / 2, mid_j = height / 2;
     grid[mid_i * (height + 2) + mid_j] = 100.0;
+}
+
+void initialize_grid_sin(double* grid, int width, int height, double delta) {
+    for (int i = 1; i <= width; i++) {
+        for (int j = 1; j <= height; j++) {
+            double x = i * delta;
+            double y = j * delta;
+            grid[i * (height + 2) + j] = sin(M_PI * x / (width * delta)) * sin(M_PI * y / (height * delta));
+        }
+    }
+
+}
+
+// Compute the analytical solution for the heat equation with a sinusoidal initial condition
+void compute_analytical_solution_sin(double* grid, int width, int height, double delta, double t) {
+    double Lx = width * delta;
+    double Ly = height * delta;
+
+    for (int i = 1; i <= width; i++) {
+        for (int j = 1; j <= height; j++) {
+            double x = i * delta;
+            double y = j * delta;
+            double u = sin(M_PI * x / Lx) * sin(M_PI * y / Ly) *
+                       exp(-M_PI * M_PI * t * (1.0 / (Lx * Lx) + 1.0 / (Ly * Ly)));
+
+            grid[i * (height + 2) + j] = u;
+        }
+    }
 }

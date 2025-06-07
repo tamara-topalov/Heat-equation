@@ -7,8 +7,8 @@ TARGETS := benchmark visualize
 
 all: $(TARGETS)
 
-benchmark: cpu_gpu_benchmark.cu cpu_solver.c gpu_solver.cu
-	$(NVCC) $(NVCCFLAGS) cpu_gpu_benchmark.cu cpu_solver.c gpu_solver.cu -o benchmark
+benchmark: cpu_gpu_benchmark.cu cpu_solver.c gpu_solver.cu implicit_gpu_solver.cu
+	$(NVCC) $(NVCCFLAGS) cpu_gpu_benchmark.cu cpu_solver.c gpu_solver.cu implicit_gpu_solver.cu -o benchmark
 
 visualize: heatmap_visualizer.cu cpu_solver.c gpu_solver.cu
 	$(NVCC) $(NVCCFLAGS) heatmap_visualizer.cu cpu_solver.c gpu_solver.cu -o visualize
