@@ -17,7 +17,7 @@ double compute_rmse(double* a, double* b, int size) {
         double diff = a[i] - b[i];
         mse += (diff * diff);
     }
-    return mse / size;
+    return sqrt(mse / size);
 }
 
 int main() {
@@ -100,7 +100,7 @@ int main() {
 
                     double speedup = (cpu_time * 1000.0) / gpu_time;
 
-                    printf("%3dx%-3d | %5d | gamma=%.4f | delta=%.4f | Block %2dx%2d | CPU: %.4fs | GPU: %.2fms | Speedup: %.2fx | (Implicit) GPU: %.2fms | CPU MSE: %.6f | GPU MSE: %.6f | Implicit GPU MSE: %.6f\n",
+                    printf("%3dx%-3d | %5d | gamma=%.4f | delta=%.4f | Block %2dx%2d | CPU: %.4fs | GPU: %.2fms | Speedup: %.2fx | (Implicit) GPU: %.2fms | CPU RMSE: %.6f | GPU RMSE: %.6f | Implicit GPU RMSE: %.6f\n",
                         width, height, time_steps, gamma, delta, threadsPerBlock.x, threadsPerBlock.y,
                         cpu_time, gpu_time, speedup, gpu_time_implicit, rmse_cpu, rmse_gpu, rmse_gpu_implicit);
 
