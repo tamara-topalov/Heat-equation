@@ -1,4 +1,4 @@
-## Parallel heat equation in CUDA 
+## Parallel heat equation solver in CUDA 
 
 Group project for the Concurrent and Distributed Computing course at Ecole Polytechnique. <br>
 
