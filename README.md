@@ -1,5 +1,8 @@
-Parallel heat equation in CUDA 
-Group project for Concurrent and Distributed Computing course
+## Parallel heat equation in CUDA 
+
+Group project for the Concurrent and Distributed Computing course at Ecole Polytechnique. <br>
+
+We use the finite differences method to solve the heat equation in 2D numerically. Computations are performed on a GPU, using the CUDA framework. See the project description for more details.
 
 
-Milan Stankovic, Ena Stefic, Tamara Topalov
+By Milan Stankovic, Ena Stefic, and Tamara Topalov.
